@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from enum import Enum
 
 from textual import events, on
@@ -150,8 +151,11 @@ class Card(Draggable):
         return card_back
 
 
-class CardDeckApp(App):
-    BINDINGS = [("q", "quit", "Quit")]
+class DeckOfCardsApp(App):
+    BINDINGS = [
+        ("q", "quit", "Quit"),
+        ("s", "shuffle", "Shuffle"),
+    ]
 
     CSS = """
     Screen {
@@ -184,16 +188,26 @@ class CardDeckApp(App):
 
         yield Footer()
 
+    def action_shuffle(self) -> None:
+        z_indexes = list(range(1, 53))
+        random.shuffle(z_indexes)
+        for card in self.cards:
+            card.offset = Offset(0, 0)
+            card.face_up = False
+            card.styles.layer = f"z-index-{z_indexes.pop()}"
+
+        layers = tuple([f"z-index-{i}" for i in range(1, 53)])
+        self.screen.styles.layers = layers  # type: ignore [assignment]
+
     @on(Draggable.Grabbed)
     def on_card_grabbed(self, event: Draggable.Grabbed) -> None:
         current_layers = self.screen.layers
         new_layer = f"z-index-{len(current_layers) + 1}"
 
         self.screen.styles.layers = current_layers + (new_layer,)  # type: ignore [assignment]
-        print(self.screen.layers)
         event.draggable.styles.layer = new_layer
 
 
 if __name__ == "__main__":
-    app = CardDeckApp()
+    app = DeckOfCardsApp()
     app.run()
