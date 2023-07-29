@@ -208,6 +208,6 @@ class DeckOfCardsApp(App):
         event.draggable.styles.layer = new_layer
 
 
-if __name__ == "__main__":
+def run() -> None:
     app = DeckOfCardsApp()
     app.run()
