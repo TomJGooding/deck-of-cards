@@ -1,7 +1,10 @@
 from enum import Enum
 
 from rich.console import RenderableType
+from textual import events
 from textual.app import App, ComposeResult
+from textual.geometry import Offset
+from textual.reactive import var
 from textual.widgets import Footer, Static
 
 
@@ -44,7 +47,37 @@ RANK_SYMBOLS = {
 }
 
 
-class Card(Static):
+class Draggable(Static):
+    mouse_at_drag_start: var[Offset | None] = var(None)
+    offset_at_drag_start: var[Offset | None] = var(None)
+
+    def on_mouse_down(self, event: events.MouseDown) -> None:
+        self.mouse_at_drag_start = event.screen_offset
+        self.offset_at_drag_start = Offset(
+            round(self.styles.offset.x.value),
+            round(self.styles.offset.y.value),
+        )
+        self.capture_mouse()
+
+    def on_mouse_move(self, event: events.MouseMove) -> None:
+        if (
+            self.mouse_at_drag_start is not None
+            and self.offset_at_drag_start is not None
+        ):
+            self.styles.offset = (
+                self.offset_at_drag_start
+                + event.screen_offset
+                - self.mouse_at_drag_start
+            )
+
+    def on_mouse_up(self, event: events.MouseUp) -> None:
+        self.mouse_at_drag_start = None
+        self.offset_at_drag_start = None
+        self.release_mouse()
+        event.stop()
+
+
+class Card(Draggable):
     DEFAULT_CSS = """
     Card {
         background: white;
