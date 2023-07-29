@@ -81,33 +81,31 @@ class Card(Draggable):
     DEFAULT_CSS = """
     Card {
         background: white;
-        width: 10;
-        height: 8;
-        content-align: center middle;
+        width: 8;
+        height: 6;
     }
     """
+
+    face_up: var[bool] = var(False)
 
     def __init__(self, rank: CardRank, suit: CardSuit) -> None:
         super().__init__()
         self.rank = rank
         self.suit = suit
 
-    def render(self) -> RenderableType:
-        card_face = "\n".join(
-            [
-                f"{self.rank_symbol : <4}{self.suit_symbol : >4}",
-                "\n",
-                "\n",
-                f"{self.suit_symbol : <4}{self.rank_symbol : >4}",
-            ]
-        )
-        return card_face
+    def watch_face_up(self, face_up: bool) -> None:
+        self.update(self.face) if face_up else self.update(self.back)
+        if not face_up:
+            self.styles.color = "blue"
+            return
 
-    def on_mount(self) -> None:
         if self.suit in (CardSuit.HEARTS, CardSuit.DIAMONDS):
             self.styles.color = "red"
         else:
             self.styles.color = "black"
+
+    def on_click(self) -> None:
+        self.face_up = not self.face_up
 
     @property
     def suit_symbol(self) -> str:
@@ -120,6 +118,23 @@ class Card(Draggable):
             return rank_symbol
         else:
             return str(self.rank.value)
+
+    @property
+    def face(self) -> str:
+        card_face = "\n".join(
+            [
+                f"{self.rank_symbol : <4}{self.suit_symbol : >4}",
+                "\n",
+                "\n",
+                f"{self.suit_symbol : <4}{self.rank_symbol : >4}",
+            ]
+        )
+        return card_face
+
+    @property
+    def back(self) -> str:
+        card_back = "\n".join([(chr(9618) * 8) for _ in range(6)])
+        return card_back
 
 
 class CardDeckApp(App):
