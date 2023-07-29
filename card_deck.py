@@ -1,6 +1,5 @@
 from enum import Enum
 
-from rich.console import RenderableType
 from textual import events
 from textual.app import App, ComposeResult
 from textual.geometry import Offset
@@ -88,10 +87,10 @@ class Card(Draggable):
 
     face_up: var[bool] = var(False)
 
-    def __init__(self, rank: CardRank, suit: CardSuit) -> None:
+    def __init__(self, suit: CardSuit, rank: CardRank) -> None:
         super().__init__()
-        self.rank = rank
         self.suit = suit
+        self.rank = rank
 
     def watch_face_up(self, face_up: bool) -> None:
         self.update(self.face) if face_up else self.update(self.back)
@@ -143,12 +142,32 @@ class CardDeckApp(App):
     CSS = """
     Screen {
         background: #008100;
-        align: center middle
+        align: center middle;
     }
     """
 
+    def __init__(self) -> None:
+        super().__init__()
+        self.cards: list[Card] = self.init_deck()
+
+    def init_deck(self) -> list[Card]:
+        cards: list[Card] = []
+        for suit in CardSuit:
+            for rank in CardRank:
+                cards.append(Card(suit, rank))
+        return cards
+
+    def on_mount(self) -> None:
+        layers = tuple([f"z-index-{i}" for i in range(52, 0, -1)])
+        self.screen.styles.layers = layers  # type: ignore [assignment]
+
     def compose(self) -> ComposeResult:
-        yield Card(CardRank.TEN, CardSuit.DIAMONDS)
+        z_index: int = 52
+        for card in self.cards:
+            card.styles.layer = f"z-index-{z_index}"
+            yield card
+            z_index = z_index - 1
+
         yield Footer()
 
 
