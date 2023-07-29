@@ -1,4 +1,6 @@
-# textual-card-deck
+# deck-of-cards
+
+A deck of cards in the terminal.
 
 ## Acknowledgements
 
