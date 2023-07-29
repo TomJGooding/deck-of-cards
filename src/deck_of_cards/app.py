@@ -1,23 +1,26 @@
+from __future__ import annotations
+
 from enum import Enum
 
-from textual import events
+from textual import events, on
 from textual.app import App, ComposeResult
 from textual.geometry import Offset
+from textual.message import Message
 from textual.reactive import var
 from textual.widgets import Footer, Static
 
 
 class CardSuit(Enum):
-    CLUBS = 1
-    HEARTS = 2
-    DIAMONDS = 3
+    DIAMONDS = 1
+    CLUBS = 2
+    HEARTS = 3
     SPADES = 4
 
 
 SUIT_SYMBOLS = {
+    CardSuit.DIAMONDS: chr(9830),
     CardSuit.CLUBS: chr(9827),
     CardSuit.HEARTS: chr(9829),
-    CardSuit.DIAMONDS: chr(9830),
     CardSuit.SPADES: chr(9824),
 }
 
@@ -50,7 +53,18 @@ class Draggable(Static):
     mouse_at_drag_start: var[Offset | None] = var(None)
     offset_at_drag_start: var[Offset | None] = var(None)
 
+    class Grabbed(Message):
+        def __init__(self, draggable: Draggable) -> None:
+            super().__init__()
+            self.draggable: Draggable = draggable
+
+        @property
+        def control(self) -> Draggable:
+            return self.draggable
+
     def on_mouse_down(self, event: events.MouseDown) -> None:
+        self.post_message(self.Grabbed(self))
+
         self.mouse_at_drag_start = event.screen_offset
         self.offset_at_drag_start = Offset(
             round(self.styles.offset.x.value),
@@ -153,22 +167,31 @@ class CardDeckApp(App):
     def init_deck(self) -> list[Card]:
         cards: list[Card] = []
         for suit in CardSuit:
-            for rank in CardRank:
+            for rank in list(reversed(CardRank)):
                 cards.append(Card(suit, rank))
         return cards
 
     def on_mount(self) -> None:
-        layers = tuple([f"z-index-{i}" for i in range(52, 0, -1)])
+        layers = tuple([f"z-index-{i}" for i in range(1, 53)])
         self.screen.styles.layers = layers  # type: ignore [assignment]
 
     def compose(self) -> ComposeResult:
-        z_index: int = 52
+        z_index: int = 1
         for card in self.cards:
             card.styles.layer = f"z-index-{z_index}"
             yield card
-            z_index = z_index - 1
+            z_index = z_index + 1
 
         yield Footer()
+
+    @on(Draggable.Grabbed)
+    def on_card_grabbed(self, event: Draggable.Grabbed) -> None:
+        current_layers = self.screen.layers
+        new_layer = f"z-index-{len(current_layers) + 1}"
+
+        self.screen.styles.layers = current_layers + (new_layer,)  # type: ignore [assignment]
+        print(self.screen.layers)
+        event.draggable.styles.layer = new_layer
 
 
 if __name__ == "__main__":
