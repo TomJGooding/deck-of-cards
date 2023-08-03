@@ -5,6 +5,7 @@ from enum import Enum
 
 from textual import events, on
 from textual.app import App, ComposeResult
+from textual.css.scalar import ScalarOffset
 from textual.geometry import Offset
 from textual.message import Message
 from textual.reactive import var
@@ -172,6 +173,8 @@ class DeckOfCardsApp(App):
     }
     """
 
+    fresh_deck: var[bool] = var(True)
+
     def __init__(self) -> None:
         super().__init__()
         self.cards: list[Card] = self.init_deck()
@@ -196,22 +199,37 @@ class DeckOfCardsApp(App):
 
         yield Footer()
 
-    def action_shuffle(self) -> None:
+    async def action_shuffle(self) -> None:
+        if not self.fresh_deck:
+            self._return_cards_to_deck()
+            await self.animator.wait_until_complete()
+
         z_indexes = list(range(1, 53))
         random.shuffle(z_indexes)
         for card in self.cards:
-            card.offset = Offset(0, 0)
             card.face_up = False
             card.styles.layer = f"z-index-{z_indexes.pop()}"
 
         layers = tuple([f"z-index-{i}" for i in range(1, 53)])
         self.screen.styles.layers = layers  # type: ignore [assignment]
 
+        self.fresh_deck = True
+
+    def _return_cards_to_deck(self) -> None:
+        for card in self.cards:
+            card.styles.animate(
+                "offset",
+                # workaround for https://github.com/Textualize/textual/issues/3028
+                value=ScalarOffset.from_offset((0, 0)),  # type: ignore [arg-type]
+                duration=0.2,
+            )
+
     @on(Draggable.Grabbed)
     def on_card_grabbed(self, event: Draggable.Grabbed) -> None:
+        self.fresh_deck = False
+
         current_layers = self.screen.layers
         new_layer = f"z-index-{len(current_layers) + 1}"
-
         self.screen.styles.layers = current_layers + (new_layer,)  # type: ignore [assignment]
         event.draggable.styles.layer = new_layer
 
