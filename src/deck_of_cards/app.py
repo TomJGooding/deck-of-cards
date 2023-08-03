@@ -53,6 +53,7 @@ RANK_SYMBOLS = {
 class Draggable(Static):
     mouse_at_drag_start: var[Offset | None] = var(None)
     offset_at_drag_start: var[Offset | None] = var(None)
+    dragged: var[bool] = var(False)
 
     class Grabbed(Message):
         def __init__(self, draggable: Draggable) -> None:
@@ -64,6 +65,10 @@ class Draggable(Static):
             return self.draggable
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
+        # dragged is set to False to differentate a mouse click from a
+        # click-and-drag.
+        self.dragged = False
+
         self.post_message(self.Grabbed(self))
 
         self.mouse_at_drag_start = event.screen_offset
@@ -78,6 +83,8 @@ class Draggable(Static):
             self.mouse_at_drag_start is not None
             and self.offset_at_drag_start is not None
         ):
+            self.dragged = True
+
             self.styles.offset = (
                 self.offset_at_drag_start
                 + event.screen_offset
@@ -119,7 +126,8 @@ class Card(Draggable):
             self.styles.color = "black"
 
     def on_click(self) -> None:
-        self.face_up = not self.face_up
+        if not self.dragged:
+            self.face_up = not self.face_up
 
     @property
     def suit_symbol(self) -> str:
