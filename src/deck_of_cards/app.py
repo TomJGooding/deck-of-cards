@@ -201,21 +201,22 @@ class DeckOfCardsApp(App):
 
     async def action_shuffle(self) -> None:
         if not self.fresh_deck:
-            self._return_cards_to_deck()
-            await self.animator.wait_until_complete()
+            await self._return_cards_to_deck()
 
         z_indexes = list(range(1, 53))
         random.shuffle(z_indexes)
         for card in self.cards:
-            card.face_up = False
             card.styles.layer = f"z-index-{z_indexes.pop()}"
+
+        await self._shuffle_animation()
+        await self._shuffle_animation()
 
         layers = tuple([f"z-index-{i}" for i in range(1, 53)])
         self.screen.styles.layers = layers  # type: ignore [assignment]
 
         self.fresh_deck = True
 
-    def _return_cards_to_deck(self) -> None:
+    async def _return_cards_to_deck(self) -> None:
         for card in self.cards:
             card.styles.animate(
                 "offset",
@@ -223,6 +224,44 @@ class DeckOfCardsApp(App):
                 value=ScalarOffset.from_offset((0, 0)),  # type: ignore [arg-type]
                 duration=0.2,
             )
+        await self.animator.wait_until_complete()
+        self._turn_all_cards(face_up=False)
+
+    async def _shuffle_animation(self) -> None:
+        n = 8  # number of cards to animate each side of the deck
+        cards_to_animate = random.sample(self.cards, (n * 2) + 1)
+        cards_to_animate.sort(
+            key=lambda card: int(card.styles.layer.split("-")[-1]),
+        )
+        x_offsets = list(range(-abs(n), n + 1))
+        assert len(cards_to_animate) == len(x_offsets)
+
+        for idx, card in enumerate(cards_to_animate[:n]):
+            if idx % 2 != 0:
+                card.face_up = True
+            card.styles.animate(
+                "offset",
+                # workaround for https://github.com/Textualize/textual/issues/3028
+                value=ScalarOffset.from_offset((x_offsets[idx], 0)),  # type: ignore [arg-type]
+                duration=0.2,
+            )
+
+        for idx, card in enumerate(reversed(cards_to_animate[n:]), start=n):
+            if idx % 2 != 0:
+                card.face_up = True
+            card.styles.animate(
+                "offset",
+                # workaround for https://github.com/Textualize/textual/issues/3028
+                value=ScalarOffset.from_offset((x_offsets[idx], 0)),  # type: ignore [arg-type]
+                duration=0.2,
+            )
+
+        await self.animator.wait_until_complete()
+        await self._return_cards_to_deck()
+
+    def _turn_all_cards(self, face_up: bool) -> None:
+        for card in self.cards:
+            card.face_up = face_up
 
     @on(Draggable.Grabbed)
     def on_card_grabbed(self, event: Draggable.Grabbed) -> None:
